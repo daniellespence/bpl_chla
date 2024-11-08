@@ -107,12 +107,12 @@ The provided code reproduces:
 - [x] Selected tables and figures in the paper, as explained and justified below.
 
 
-| Figure/Table  | Program             | Line Number | Output file                      | Note   |
+| Figure/Table  | Code/Program             | Line Number | Output file                      | Note   |
 |-----------|-------------------------|-------------|----------------------------------|-------|
-| Figure 1 | |  `1. Chla time series.R`     |   ||
-| Figure 2 | |  `1. Chla time series.R`     |   ||
-| Figure 3 | |  `2. Chla GAM predictors.R`     |   ||
-| Figure S1 | |  `QLD vs. QWs.R`     |   ||
-| Figure S2 | |  `Plotting annual totals all predictors chla.R`     |   ||
-| Figure S3 | |  `2. Chla GAM predictors.R`     |   ||
-| Figure S4 | |  `Climate data time series plotting BP.R`    |   ||
+| Figure 1 | `1. Chla time series.R` |      |   ||
+| Figure 2 |  `1. Chla time series.R`|      |   ||
+| Figure 3 | `2. Chla GAM predictors.R` |      |   ||
+| Figure S1 |  `QLD vs. QWs.R` |     |   ||
+| Figure S2 | `Plotting annual totals all predictors chla.R` |      |   ||
+| Figure S3 | `2. Chla GAM predictors.R`|       |   ||
+| Figure S4 | `Climate data time series plotting BP.R`|      |   ||
