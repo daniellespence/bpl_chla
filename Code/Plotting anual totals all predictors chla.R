@@ -41,23 +41,21 @@ df <- df%>%
   dplyr::rename(
     date = "Date",
     chla = "Chla_ug.L",
-    TON = "Odour_TON",
-    turb = "Turb_NTU",
     NO3 = "NO3_mg.L",
     NH3 = "NH3_mg.L",
     SRP = "SRP_ug.L",
     TP = "TP_ug.L",
     W_temp = "Temp_C",
-    cond = "Cond_uS.cm",
-    SO4 = "SO4_mg.L",
     orgN = "Org_N_mg.L",
-    QBP = "combined_05JG004.cms",
     QLD = "SK05JG006.cms",
     QWS = "RC_IC_cms"  )
 
 
 
 
+# change 0 values to LOD 
+df$NO3[df$NO3 == 0] <- 0.057
+df$NH3[df$NH3 == 0] <- 0.086
 
 ##----------------------------------------------------------------------------##
 ## 2. Explore time series for each variable
@@ -109,46 +107,6 @@ p_anCL<- anncl %>%
   #scale_y_log10()
 p_anCL
 
-
-
-#---------------------------------------- plot annual average pH 
-
-# plot annual chla totals
-ann <-aggregate(df_c$pH,  
-                by=list(df_c$year),  
-                FUN=mean,
-                na.rm=TRUE) 
-ann<- ann %>% rename(mean = x)
-
-ann1 <-aggregate(df_c$pH,  
-                 by=list(df_c$year),  
-                 FUN = max,
-                 na.rm=TRUE)
-ann1 <- ann1 %>% rename(max = x)
-
-ann2 <-aggregate(df_c$pH,  
-                 by=list(df_c$year),  
-                 FUN = min,
-                 na.rm=TRUE)
-ann2 <- ann2 %>% rename(min = x)
-
-annpH<- left_join(ann, ann1,  by= "Group.1")
-annpH<- left_join(annpH, ann2, by= "Group.1")
-
-p_anpH<- annpH %>%
-  ggplot(aes(x = Group.1, y = mean)) +
-  geom_point()+
-  geom_ribbon(aes(ymin = min, ymax = max), fill = '#165459B2', alpha = 1/2) +
-  geom_line()+
-  ggtitle("pH")+
-  xlab("Year") + ylab("pH")+
-  theme_bw(base_size = 14)+
-  theme(axis.text.y = element_text(face = "bold"))+
-  theme(axis.title.y = element_text(face = "bold")) +
-  theme(axis.title.x = element_blank(),
-        axis.text.x = element_blank()) #+
-#scale_y_log10()
-p_anpH
 
 
 ##---------- plot annual SRP loads
@@ -232,11 +190,13 @@ p_anTP
 #---------------------------------------------- plot annual DIN totals
 
 
-df1 <- df[complete.cases(df$NO3),]
+#df1 <- df[complete.cases(df$NO3),]
 
-df1$DIN <- rowSums(df1[,c("NO3", "NH3")], na.rm=TRUE)
+df$DIN <- rowSums(df[,c("NO3", "NH3")], na.rm=TRUE)
 
-df1 <- filter(df1, DIN != 0)
+df1<- df
+
+df1 <- filter(df, DIN != 0)
 
 ann <-aggregate(df1$DIN,  
                 by=list(df1$year),  
@@ -276,7 +236,9 @@ p_anDIN
 
 #--------------------------------plot annual TN totals
 
-df1$TN <- rowSums(df1[,c("NO3", "NH3", "orgN")], na.rm=TRUE)
+df$TN <- rowSums(df[,c("NO3", "NH3", "orgN")], na.rm=TRUE)
+
+df1 <- filter(df, TN != 0)
 
 ann <-aggregate(df1$TN,  
                 by=list(df1$year),  
@@ -335,11 +297,6 @@ ann2 <- ann2 %>% rename(min = x)
 
 annW<- left_join(ann, ann1,  by= "Group.1")
 annW<- left_join(annW, ann2, by= "Group.1")
-
-m1<-glm(max ~ Group.1, data = annW)
-summary(m1)
-
-plot(m1)
 
 p_anW<- annW %>%
   ggplot(aes(x = Group.1, y = mean)) +
@@ -404,10 +361,9 @@ p_an
 
 #------------------------------------------- plot annual total WS contributions
 
-
 ann <-aggregate(df$QWS,  
                 by=list(df$year),  
-                FUN=sum,
+                FUN=mean,
                 na.rm=TRUE) 
 ann<- ann %>% rename(mean = x)
 
@@ -426,7 +382,6 @@ ann2 <- ann2 %>% rename(min = x)
 annWS<- left_join(ann, ann1,  by= "Group.1")
 annWS<- left_join(annWS, ann2, by= "Group.1")
 
-
 p_anWS<- annWS %>%
   ggplot(aes(x = Group.1, y = mean)) +
   geom_point()+
@@ -441,68 +396,20 @@ p_anWS<- annWS %>%
   theme(axis.text.y = element_text(face = "bold"))+
   theme(axis.title.y = element_text(face = "bold"))+
   theme(axis.text.x = element_text(face = "bold", size=14))+
-  theme(axis.title.x = element_text(face = "bold", size=16)) +
+  theme(axis.title.x = element_text(face = "bold", size=16))+
   theme(axis.title.x = element_blank(),
         axis.text.x = element_blank())
 p_anWS
 
-# plot annual BP
-
-ann <-aggregate(df$QBP,  
-                by=list(df$year),  
-                FUN=mean,
-                na.rm=TRUE) 
-ann<- ann %>% rename(mean = x)
-
-ann1 <-aggregate(df$QBP,  
-                 by=list(df$year),  
-                 FUN = max,
-                 na.rm=TRUE)
-ann1 <- ann1 %>% rename(max = x)
-
-ann2 <-aggregate(df$QBP,  
-                 by=list(df$year),  
-                 FUN = min,
-                 na.rm=TRUE)
-ann2 <- ann2 %>% rename(min = x)
-
-annBP<- left_join(ann, ann1,  by= "Group.1")
-annBP<- left_join(annBP, ann2, by= "Group.1")
-
-p_anBP<- annBP %>%
-  ggplot(aes(x = Group.1, y = mean)) +
-  geom_point()+
-  geom_ribbon(aes(ymin = min, ymax = max), fill = '#165459B2', alpha = 1/2) +
-  geom_line()+
-  ggtitle("QBP")+
-  xlab("Year") + ylab(expression(paste(
-    "QBP (",
-    m^3, "/", s,
-    ")")))+ theme_bw(base_size = 14)+
-  theme(axis.text.y = element_text(face = "bold"))+
-  theme(axis.title.y = element_text(face = "bold")) +
-theme(axis.text.x = element_text(face = "bold", size=14))+
-  theme(axis.title.x = element_text(face = "bold", size=16))+
-  theme(axis.title.x = element_blank(),
-        axis.text.x = element_blank())
-
-p_anBP
-
+# put it all together 
 
 p_all<- plot_grid(p_anCL,   p_anSRP, p_anTP, p_anDIN, p_anTN, p_an, p_anWS, p_anW,  ncol = 1, align = "v")
 p_all
 
 
-ggsave('output/annual totals all MAX and MIN.png', p_all, height = 18, width  = 16, dpi = 320)
+ggsave('output/annual totals all MAX and MIN MLD ADDED.png', p_all, height = 18, width  = 16, dpi = 320)
 
 
-
-p_a<- plot_grid(p_anCL, p_anSRP, p_anTP, p_anDIN, p_anTN, p_anW, nrow = 6, align = "v")
-p_a
-
-
-ggsave('output/annual totals biomass TN TP.png', p_a, height = 13, width  = 13)
- 
 
 ###----------------------------------------------------------------------------
 ### Decadal averages-water temperature
