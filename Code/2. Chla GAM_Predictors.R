@@ -56,7 +56,11 @@ df <- df%>%
 
 #Remove rows without Chla data
 df <- df[complete.cases(df$chla),]
-# 1238 obs
+# 1255 obs
+
+# change 0 values to LOD 
+df$NO3[df$NO3 == 0] <- 0.057
+df$NH3[df$NH3 == 0] <- 0.086
 
 df$DIN <- rowSums(df[,c("NO3", "NH3")], na.rm=TRUE)
 
@@ -68,9 +72,9 @@ df1<- merge(df, clim, by="date")
 
 ## remove 0s/missing values from analysis....
 
-df1 <- filter(df1, chla != 0) # 1206 obs
-df1 <- filter(df1, SRP != 0) # 889
-df1 <- filter(df1, DIN != 0) # 774
+df1 <- filter(df1, chla != 0) # 1255 obs
+#df1 <- filter(df1, SRP != 0) # 903
+#df1 <- filter(df1, DIN != 0) # 774
 
 ##----------------------------------------------------------------------------##
 ## 3. Check trends, distributions, correlations
@@ -114,7 +118,7 @@ m <- gam(chla ~ s(SRP, k=10) +
 #                 type = 'response', points = 0.5,
 #                 rug = TRUE) 
 
-summary(m) # Deviance explained = 63%, REML = 2867, r2 = 0.526
+summary(m) # Deviance explained = 60%, REML = 3894, r2 = 0.499
 
 k.check(m)# k-index looks good 
 
@@ -193,10 +197,6 @@ DINplot <- ggplot(DIN.pdatnorm, aes(x = DIN, y = Fitted)) +
   geom_line() +
   geom_ribbon(aes(ymin = Fittedminus, ymax = Fittedplus), 
               alpha = 0.25, fill = '#165459B2') +  
-  #geomext(data = labdatoxy, aes(label = label, x = x, y = y, size = 5), 
-  #         show.legend = FALSE) +
-  #geom_abline(slope = 0, intercept = meanchla, linetype="dotted") +
- # geom_vline(xintercept = meanDIN, linetype="dotted") +
   geom_rug(aes(x=DIN), data = df1, stat = "identity", position = "identity", 
            sides = "b", na.rm = FALSE, show.legend = NA, inherit.aes = FALSE, alpha=0.3) +
   xlab(expression(paste("DIN"~"("*"mg"~L^{-1}*")"))) + ylab(expression(paste("Chlorophyll ", italic("a"), " (",mu,"g L"^-1*")")))
@@ -334,7 +334,6 @@ new_data_SOI_3MON_AVG <- with(df1, expand.grid(SOI_3MON_AVG = seq(min(SOI_3MON_A
 SOI_3MON_AVG.pred <- predict(m, newdata = new_data_SOI_3MON_AVG, type = "terms")
 
 whichCols <- grep("PDO_3MON_AVG,SOI_3MON_AVG", colnames(SOI_3MON_AVG.pred))
-#whichColsSE <- grep("SOI_3MON_AVG", colnames(SOI_3MON_AVG.pred$se.fit))
 
 new_data_SOI_3MON_AVG <- cbind(new_data_SOI_3MON_AVG, Fitted = SOI_3MON_AVG.pred[, whichCols])
 
@@ -358,7 +357,6 @@ comboplot <- ggplot(SOI_3MON_AVG.pdatnorm, aes(x = PDO_3MON_AVG, y = SOI_3MON_AV
   theme(legend.position='top') +
   geom_raster(aes(fill=chla)) + # change to turn grey background into nothing
   scale_fill_distiller(palette = "Spectral", direction = -1, na.value='transparent') +
-  # scale_fill_viridis(na.value='transparent') +
   geom_point(data=df1, aes(x=PDO_3MON_AVG, y=SOI_3MON_AVG, z=NULL)) +
   geom_contour(colour = "black", binwidth = 5) +
   theme(legend.key.width=unit(1.5,"cm"))+
