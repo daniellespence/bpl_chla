@@ -94,8 +94,7 @@ Instructions to Replicators
 - Prepare the data using scripts i–iii.
 - Run the `iv. Chla GAM fitting.R` R script to select the best fit model
 - Run the `1. Chla time series.R` and `2. Chla GAM predictors.R` R scripts to generate model outputs, as well as to create and save plots
-- Run the `Plotting annual totals all predictors chla.R` R script to generate timeline figure
-- Run the `Climate data time series plotting BP.R` R script to generate water temperature plot
+- Run the `Plotting annual totals all predictors chla.R` R script to generate timeline figure and the water temperature plot
 
 List of tables and programs
 ---------------------------
@@ -115,4 +114,4 @@ The provided code reproduces:
 | Figure S1 |  `QLD vs. QWs.R` |     |   ||
 | Figure S2 | `Plotting annual totals all predictors chla.R` |      |   ||
 | Figure S3 | `2. Chla GAM predictors.R`|       |   ||
-| Figure S4 | `Climate data time series plotting BP.R`|      |   ||
+| Figure S4 | `Plotting annual totals all predictors chla.R`|      |   ||
