@@ -99,11 +99,75 @@ flow<- flow %>%
 full_df<- merge(full_df, flow, by="Date", all=TRUE)
 
 
-full_df <- full_df[rowSums(is.na(full_df)) <= 9, ]       # Apply rowSums & is.na
+full_df <- full_df[rowSums(is.na(full_df)) <= 7, ]       # Apply rowSums & is.na
 
+full_df <- mutate(full_df,
+             DOY = as.numeric(format(Date,'%j')),
+             nMonth = as.numeric(format(Date,'%m')))
+
+
+# 2001 nitrate was 0.00 from sept-dec
+
+# Replace NA values with 0 for the year 2020 
+full_df$NO3_mg.L[full_df$year == 2001 & is.na(full_df$NO3_mg.L)] <- 0
+
+# add anthony imputations from 2003-2004 for SRP and ammonia
+
+#impute from nearest neighbours
+
+# ammonia
+full_df %>% filter(year == 2002) # c(0.0767, 0.0775) for month 3
+full_df %>% filter(year == 2003) # c(0.0667, 0) for month 1,2
+full_df %>% filter(year == 2003) # c(0.1, 0.02) for month 11,12
+full_df %>% filter(year == 2004) # c(0.1, 0.02) for month 1,2,3
+
+full_df <- full_df %>% 
+  mutate(NH3_mg.L = case_when(
+    is.na(NH3_mg.L) & year == c(2002) & nMonth %in% c(3)~ mean(c(0.0767, 0.0775)),
+    is.na(NH3_mg.L) & year == c(2003) & nMonth %in% c(1, 2) ~ mean(c(0.0667, 0)),
+    is.na(NH3_mg.L) & year == c(2003) & nMonth %in% c(11, 12) ~ mean(c(0.1, 0.02)),
+    is.na(NH3_mg.L) & year == c(2004) & nMonth %in% c(1, 2, 3)~ mean(c(0.1, 0.02)),
+    TRUE ~ as.numeric(NH3_mg.L)
+  ))
+
+
+## SRP
+
+full_df %>% filter(year %in% 2004) # c(10, 5.82)
+full_df %>% filter(year %in% 2015) # c(55, 0)
+full_df %>% filter(year %in% 2018) # c(13, 3)
+
+
+full_df <- full_df %>% 
+  mutate(SRP_ug.L = case_when(
+    is.na(SRP_ug.L) & year %in% c(2003:2004) ~ mean(c(10, 5.82)),
+    TRUE ~ as.numeric(SRP_ug.L)
+  ))
+
+## include anthony imputations for chl.a
+
+# Fill in missing Chl a in longterm df via:
+
+# 2002-03-01 impute w nearest neighbour == 7.79
+# 2003-01-01 impute w nearest neighbour == 20.0
+# 2003-02-01 impute w nearest neighbour == 20.0
+# 2007-12-01 impute w nearest neighbour == 24.9
+# 2017-12-01 impute w nearest neighbour == 24.5
+
+
+full_df$Chla_ug.L <- ifelse(is.na(full_df$Chla_ug.L) & full_df$Date == "2001-12-01", 12.3, full_df$Chla_ug.L)
+full_df$Chla_ug.L <- ifelse(is.na(full_df$Chla_ug.L) & full_df$Date == "2002-03-18", 7.79, full_df$Chla_ug.L)
+full_df$Chla_ug.L <- ifelse(is.na(full_df$Chla_ug.L) & full_df$Date == "2003-01-06", 20.0, full_df$Chla_ug.L)
+full_df$Chla_ug.L <- ifelse(is.na(full_df$Chla_ug.L) & full_df$Date == "2003-02-10", 20.0, full_df$Chla_ug.L)
+
+
+## change 0s for N and P to limits of detection
+
+full_df$NO3_mg.L[full_df$NO3_mg.L == 0] <- (0.057/2)
+full_df$NH3_mg.L[full_df$NH3_mg.L == 0] <- (0.086/2)
+full_df$SRP_ug.L[full_df$SRP_ug.L == 0] <- (3/2)
 
 write.csv(full_df, file="data/bpgamdataCLEAN_flow.csv", row.names=F)
-
 
 my_summary_data <- full_df %>%
   group_by(year) %>%

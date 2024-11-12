@@ -21,15 +21,6 @@ df <- read_csv("data/bpgamdataCLEAN_flow.csv")
 
 df$Date<- as.Date(df$Date, "%m/%d/%Y")
 
-# add in Year and nMonth for numeric month and a proper Date class
-
-df <- mutate(df,
-             year = as.numeric(format(Date,'%Y')),
-             nMonth = as.numeric(format(Date,'%m')),
-             DOY = as.numeric(format(Date,'%j')))%>% 
-  filter(year %in% c(1984:2022))
-
-
 ## order the data
 df <- df[with(df, order(Date)),]
 
@@ -39,16 +30,10 @@ df <- df%>%
   dplyr::rename(
     date = "Date",
     chla = "Chla_ug.L",
-    TON = "Odour_TON",
-    turb = "Turb_NTU",
     NO3 = "NO3_mg.L",
     NH3 = "NH3_mg.L",
     SRP = "SRP_ug.L",
-    TP = "TP_ug.L",
     W_temp = "Temp_C",
-    cond = "Cond_uS.cm",
-    SO4 = "SO4_mg.L",
-    QBP = "combined_05JG004.cms",
     QLD = "SK05JG006.cms",
     QWS = "RC_IC_cms"
     )
@@ -56,11 +41,8 @@ df <- df%>%
 
 #Remove rows without Chla data
 df <- df[complete.cases(df$chla),]
-# 1255 obs
+# 1241 obs
 
-# change 0 values to LOD 
-df$NO3[df$NO3 == 0] <- 0.057
-df$NH3[df$NH3 == 0] <- 0.086
 
 df$DIN <- rowSums(df[,c("NO3", "NH3")], na.rm=TRUE)
 
@@ -72,9 +54,7 @@ df1<- merge(df, clim, by="date")
 
 ## remove 0s/missing values from analysis....
 
-df1 <- filter(df1, chla != 0) # 1255 obs
-#df1 <- filter(df1, SRP != 0) # 903
-#df1 <- filter(df1, DIN != 0) # 774
+#df1 <- filter(df1, chla != 0) # 1209 obs
 
 ##----------------------------------------------------------------------------##
 ## 3. Check trends, distributions, correlations
@@ -106,19 +86,18 @@ ggsave('output/Correlations.png', p, height = 6, width  = 8)
 
 m <- gam(chla ~ s(SRP, k=10) +  
               s(DIN, k=10)+
-              s(QLD, k=5)+ 
-              # s(W_temp)+
+              s(QLD, k=7)+ 
               te(PDO_3MON_AVG,SOI_3MON_AVG)+
               te(year, DOY, bs = c("cr", "cc"), k=c(10,12)),
             knots=list(DOY=c(0, 366.5)),
             select = TRUE,
             data = df1, method = "REML", family = tw(link="log"))
 
-#plot_predictions(m, condition = c('SRP', 'DIN'),
-#                 type = 'response', points = 0.5,
-#                 rug = TRUE) 
+plot_predictions(m, condition = c('SRP', 'DIN'),
+                 type = 'response', points = 0.5,
+                 rug = TRUE) 
 
-summary(m) # Deviance explained = 60%, REML = 3894, r2 = 0.499
+summary(m) # Deviance explained = 60%, REML = 3956, r2 = 0.498, n=1070
 
 k.check(m)# k-index looks good 
 
@@ -298,7 +277,7 @@ QLDquants <- quantile(df1$QLD, c(.05,.95), na.rm = TRUE)
 
 QLDplot <- ggplot(QLD.pdatnorm, aes(x = QLD, y = Fitted)) +
   theme_bw(base_size = 14)+
-  scale_y_continuous(limits=c(5, 22))+
+  scale_y_continuous(limits=c(5, 25))+
   annotate("rect", xmin=QLDquants[1], xmax=QLDquants[2], ymin=-Inf, ymax=Inf, alpha = 0.1, fill='gray60') +
   geom_line() +
   geom_ribbon(aes(ymin = Fittedminus, ymax = Fittedplus), 
@@ -316,7 +295,7 @@ p_all<- plot_grid(SRPplot, DINplot, QLDplot,  ncol = 2,  labels = c('A.', 'B.', 
 p_all
 
 
-ggsave('output/Chla GAM_Response scale NO lag.png', p_all, height = 10, width  = 10)
+ggsave('output/Chla GAM_Response scale.png', p_all, height = 10, width  = 10)
 
 
 ## ---------- SOI * PDO -------------------##
@@ -368,107 +347,61 @@ comboplot <- ggplot(SOI_3MON_AVG.pdatnorm, aes(x = PDO_3MON_AVG, y = SOI_3MON_AV
 comboplot
 
 
-ggsave('output/SOI PDO INTERACTION Response scale NO LAG.png', comboplot, height = 6, width  = 8)
+ggsave('output/SOI PDO INTERACTION Response scale.png', comboplot, height = 6, width  = 8)
 
 
-## ==================================================================================
-## Looking at effect by time SOURCE CODE (Wilk et al. 2018)
-## ==================================================================================
+##-----------------------------------temporal change------------------------------- ####
 
 
-df2<- df1%>%
-  select(date, year, nMonth, DOY, chla, SRP, DIN, QLD,  SOI_3MON_AVG, PDO_3MON_AVG)
-df2<- na.exclude(df2)
+new_data_year <- with(df1, expand.grid(DOY = seq(min(DOY), max(DOY),length = 200),
+                                       year = seq(min(year), max(year),length = 200),
+                                       SOI_3MON_AVG = median(SOI_3MON_AVG),
+                                       PDO_3MON_AVG = median(PDO_3MON_AVG),
+                                       SRP = median(SRP, na.rm=TRUE),
+                                       DIN = median(DIN, na.rm=TRUE),
+                                       #W_temp = median(W_temp, na.rm=TRUE),
+                                       QLD = median(QLD, na.rm=TRUE)))
 
-df2$date <- as.Date(df2$date)
+year.pred <- predict(m, newdata = new_data_year, type = "terms")
 
-testing1 <- predict(m, type = 'terms')
-testing <- as.data.frame(testing1)
+whichCols <- grep("year,DOY", colnames(year.pred))
+#whichColsSE <- grep("year", colnames(year.pred$se.fit))
 
-tosum <- grep("DIN", colnames(testing))
-DINeffect <- rowSums(testing[tosum], na.rm = TRUE)
-testing <- testing[,-tosum]
-testing$DIN <- DINeffect
+new_data_year <- cbind(new_data_year, Fitted = year.pred[, whichCols])
 
+shiftcomb <- attr(year.pred, "constant")
+year.pdatnorm <- new_data_year
+year.pdatnorm <- with(year.pdatnorm, transform(year.pdatnorm, Fitted = Fitted + shiftcomb))
 
-names(testing) <- c("SRP", "QLD", "SOI_PDO", "time", "DIN")
-testing$Year <- df1$year
-testing$Month <- df1$nMonth
-
-
-testing$Month<- as.factor(testing$Month)
-testing$Year<- as.factor(testing$Year)
-
-peD <- ggplot(testing, aes(x = Year, y = DIN)) +
-  annotate("rect", ymin = -0.1, ymax = 0.1,
-           xmin = -Inf, xmax = Inf, alpha = 0.3, fill = '#165459B2') +
-  geom_boxplot() +
-  scale_x_discrete(breaks = seq(1985, 2020, by = 5))+
-  theme_bw(base_size=12) +
-  theme(axis.text.x = element_text(angle=70, hjust=1,  face = "bold")) +
-  theme(axis.text.y = element_text(face = "bold"))+
-  theme(axis.title.x = element_text(face = "bold"))+
-  theme(axis.title.y = element_text(face = "bold")) + 
-  ylab("DIN effect") + xlab("Year")
-peD
+toofar <- exclude.too.far(year.pdatnorm$DOY, year.pdatnorm$year, df1$DOY, df1$year, dist=0.1)
+year.pdatnorm$chla <- year.pdatnorm$Fitted
+year.pdatnorm$chla[toofar] <- NA
 
 
-##--------SRP--------------##
+year.pdatnorm$chla<-exp(year.pdatnorm$chla)
 
 
-peS <- ggplot(testing, aes(x = Year, y = SRP)) +
-  annotate("rect", ymin = -0.1, ymax = 0.1,
-           xmin = -Inf, xmax = Inf, alpha = 0.3, fill = '#165459B2') +
-  geom_boxplot() +
-  scale_x_discrete(breaks = seq(1985, 2020, by = 5))+
-  theme_bw(base_size=14) +
-  theme_bw(base_size=12) +
-  theme(axis.text.x = element_text(angle=70, hjust=1,  face = "bold")) +
-  theme(axis.text.y = element_text(face = "bold"))+
-  theme(axis.title.x = element_text(face = "bold"))+
-  theme(axis.title.y = element_text(face = "bold")) + 
- ylab("SRP Effect") + xlab("Year")
-peS
+names(new_data_year)[which(names(new_data_year)=='year.pred')] <- 'chla'
+
+comboplot_time <- ggplot(year.pdatnorm, aes(x = year, y = DOY, z=chla)) + 
+  theme_bw(base_size=14, base_family = 'Arial') +
+  theme(legend.position='top') +
+  geom_raster(aes(fill=chla)) + # change to turn grey background into nothing
+  scale_fill_distiller(palette = "Spectral", direction = -1, na.value='transparent') +
+  geom_point(data=df1, aes(x=year, y=DOY, z=NULL)) +
+  geom_contour(colour = "black", binwidth = 5) +
+  theme(legend.key.width=unit(1.5,"cm")) +
+  xlab("Year") + ylab("DOY") +
+  labs(fill=expression(paste("Chlorophyll ", italic("a"), " (", mu ,"g L"^-1*")  ")))+
+  theme(legend.position = "top")
 
 
-##--------QLD--------------##
-
-peQ <- ggplot(testing, aes(x = Year, y = QLD)) +
-  annotate("rect", ymin = -0.1, ymax = 0.1,
-             xmin = -Inf, xmax = Inf, alpha = 0.3, fill = '#165459B2') +
-  geom_boxplot() +
-  scale_x_discrete(breaks = seq(1985, 2020, by = 5))+
-  theme_bw(base_size=12) +
-  theme(axis.text.x = element_text(angle=70, hjust=1,  face = "bold")) +
-  theme(axis.text.y = element_text(face = "bold"))+
-  theme(axis.title.x = element_text(face = "bold"))+
-  theme(axis.title.y = element_text(face = "bold")) + 
-  ylab("QLD Effect") + xlab("Year")
-
-peQ
+#ggtitle(expression(paste("Chlorophyll ", italic("a"), " (", mu, "g L"^-1*")")))
 
 
-##--------SOI*PDO--------------##
+comboplot_time
 
-pesoi <- ggplot(testing, aes(x = Year, y = SOI_PDO)) +
-  annotate("rect", ymin = -0.1, ymax = 0.1,
-           xmin = -Inf, xmax = Inf, alpha = 0.3, fill = '#165459B2') +
-  geom_boxplot() +
-  scale_x_discrete(breaks = seq(1985, 2020, by = 5))+
-  theme_bw(base_size=12) +
-  theme(axis.text.x = element_text(angle=70, hjust=1,  face = "bold")) +
-  theme(axis.text.y = element_text(face = "bold"))+
-  theme(axis.title.x = element_text(face = "bold"))+
-  theme(axis.title.y = element_text(face = "bold")) + 
-  ylab("SOI*PDO Effect") + xlab("Year")
-
-pesoi
-
-
-p_allEFF<- plot_grid(peD, peS,  peQ, pesoi, ncol = 2, align = "hv")
-p_allEFF
-
-ggsave('output/Chla GAM_partial Long-term.png', p_allEFF, height = 8, width  = 10)
+ggsave('output/chla change over time.png', comboplot_time, height = 6, width  = 8)
 
 
 ##--------------------------------------------------##

@@ -40,15 +40,11 @@ df <- df%>%
   dplyr::rename(
     date = "Date",
     chla = "Chla_ug.L",
-    turb = "Turb_NTU",
     NO3 = "NO3_mg.L",
     NH3 = "NH3_mg.L",
     SRP = "SRP_ug.L",
     TP = "TP_ug.L",
-    temp = "Temp_C",
-    orgN = "Org_N_mg.L",
-    cond = "Cond_uS.cm",
-    SO4 = "SO4_mg.L")
+    temp = "Temp_C")
 
 
 #Remove rows without Chla data
@@ -56,7 +52,7 @@ df <- df[complete.cases(df$chla),]
 
 
 df <- filter(df, chla != 0)
-# 1189 obs
+# 1241 obs
 
 ##----------------------------------------------------------------------------##
 ## 2. Check trends, distributions
@@ -90,7 +86,7 @@ m<- gam(chla ~
           data = df, method = "REML", family = Gamma(link = "log"))
 
 
-summary(m) # 42% of deviance explained, REML 4502.1, r sq = 0.44
+summary(m) # 42% of deviance explained, REML 4580, r sq = 0.395
 draw(m, residuals =TRUE)
 
 appraise(m, point_col = 'steelblue', point_alpha = 0.5, n_bins = 'fd') & 
@@ -236,7 +232,7 @@ new_chla <- d_chla %>% select(year, sig)
 library(lubridate)
 new_chla$date <- format(date_decimal(new_chla$year), "%d-%m-%Y")
 
-# 22-12-1992 to 01-10-1997
+# 01-1992 to 12-1997
 
 
 ##---------------- plot DOY
@@ -300,7 +296,7 @@ p1
 
 
 
-ggsave('output/chla DOY sig change pink.png', p, height = 8, width  = 10)
+#ggsave('output/chla DOY sig change pink.png', p, height = 8, width  = 10)
 
 
 p_all<- plot_grid(p, p1, align="hv", labels = c('A.', 'B.'))
@@ -405,76 +401,6 @@ comboplot <- ggplot(year.pdatnorm, aes(x = year, y = DOY, z=chla)) +
 comboplot
 
 ggsave('output/Chla time series response values Interaction GAMMA.png', comboplot, height = 6, width  = 8)
-
-
-##----------------------------------------------------------------------------##
-## 9. Comparing predicted to observed (Code from Baron, 2023)
-##----------------------------------------------------------------------------###
-
-
-# i. predict Chla concentrations from GAM 
-predM <- predict(m1$gam, type = 'response', se.fit = TRUE)
-
-predM_df <- as_tibble(predM) %>% dplyr::rename(chlapred = fit, chlapred_se = se.fit)
-
-predM_df$chlapred<- expm1(predM_df$chlapred)
-predM_df$chlapred_se<- expm1(predM_df$chlapred_se)
-
-# ii. bind to original dataframe
-gambp_pred <- qpcR:::cbind.na(df, predM_df)
-
-gambp_pred <- as_tibble(gambp_pred)
-
-# iii. select date and observed vs. predicted
-
-gambp_pred_long <- dplyr::select(gambp_pred, c(date, chla, chlapred)) 
-
-
-gambp_pred_long <- gambp_pred_long %>%
-  dplyr::rename(Observed = chla, Predicted = chlapred) %>% 
-  pivot_longer(cols = -date,
-               names_to = "fit",
-               values_to = "Chla") 
-
-gambp_pred_long %>%
-  ggplot(aes(date, Chla, col = fit)) +
-  geom_line(size = 1) +
-  labs(y = 'Chla', col = NULL, x = 'Year')
-
-# plot prediction with ribbon 
-p_predYEAR <- gambp_pred %>% 
-  ggplot(aes(date, chla)) +
-  geom_point(alpha = 7/8, size = 1.5) + 
-  geom_line(data = gambp_pred, aes(date, chlapred), size = 1, col = "steelblue3") + 
-  geom_ribbon(data = gambp_pred,
-              aes(ymin = chlapred - 1.96 * chlapred_se, 
-                  ymax = chlapred + 1.96 * chlapred_se),
-              fill = 'steelblue3', alpha = 1/2, size = 4) +
-  labs(x = 'Year', y = expression(paste("Log(Chlorophyll ", italic("a"), " (?g L"^-1*"))")) ) 
-
-p_predYEAR
-
-#ggsave('output/predicted vs observed year.png', p_predYEAR, height = 8, width  = 10)
-
-
-## decent fit, doesn't model extremes very well
-
-# plot prediction with ribbon and faceted by year 
-p_predDOY <- gambp_pred %>% 
-  ggplot(aes(yday(date), chla)) +
-  facet_wrap(~ year, ncol = 10) +
-  geom_point(alpha = 7/8, size = 1.5) + 
-  geom_line(data = gambp_pred, aes(yday(date), chlapred, group = year), size = 1, col = "#165459B2") +
-  geom_ribbon(data = gambp_pred,
-              aes(ymin = chlapred - 1.96 * chlapred_se, 
-                  ymax = chlapred + 1.96 * chlapred_se),
-              fill = '#165459B2', alpha = 1/2) +
-  theme_bw()+
-  labs(x = 'Day of year', y = expression(paste("Chlorophyll ", italic("a"))))
-
-p_predDOY 
-
-ggsave('output/Chla predicted vs observed DOY.png', p_predDOY, height = 8, width  = 10)
 
 
 
