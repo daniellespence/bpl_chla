@@ -1,9 +1,9 @@
 # bpl_chla
-R code used for statistical analyses and plots in *Climate, flow source, and nutrients impact phytoplankton biomass in a hydrologically managed, shallow drinking water reservoir* (Spence, Painter, Venkiteswaran, Baulch, XXX)
+R code used for statistical analyses and plots in *Climate variability and flow management impact phytoplankton biomass in a shallow reservoir* (Spence, Painter, Venkiteswaran, Baulch, 2025)
 
 author: "Danielle Spence"
 
-date: "November 2024"
+date: "October 2025"
 
 output:
   pdf_document: default
@@ -33,8 +33,8 @@ Licence: Open Government Licence - Canada
 ### Summary of Availability
 
 - [ ] All data **are** publicly available.
-- [ ] Some data **cannot be made** publicly available.
-- [x] **No data can be made** publicly available.
+- [x] Some data **cannot be made** publicly available.
+- [ ] **No data can be made** publicly available.
 
 ### Details on each Data Source
 
