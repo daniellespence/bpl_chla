@@ -1,5 +1,5 @@
 # bpl_chla
-R code used for statistical analyses and plots in *Climate variability and flow management impact phytoplankton biomass in a shallow reservoir* (Spence, Painter, Venkiteswaran, Baulch, 2025)
+R code used for statistical analyses and plots in *Climate variability and flow management impact phytoplankton biomass in a shallow reservoir* (Spence, Painter, Nazemi, Venkiteswaran, Baulch, 2025)
 
 author: "Danielle Spence"
 
