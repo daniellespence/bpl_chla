@@ -44,12 +44,25 @@ pdo2<- do.call("rbind", lapply(1:nrow(pdo), function(i)
 
 ##----- add in SOI (source is also NOAA), lag 6 months
 
-soi<- download_soi()
+soi <- read.csv("data/soi.long.data.txt", sep="")
 
-#soi$date_lag<- soi$Date %m-% months(6)
+#soi<- soi%>%
+# select(Date, Year, SOI, SOI_3MON_AVG)
 
 soi<- soi%>%
-  select(Date, Year, SOI, SOI_3MON_AVG)
+  pivot_longer(c(Jan:Dec), names_to = "month", values_to = "SOI")
+
+soi$month<- mapvalues(soi$month,from = c("Jan","Feb","Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 
+                      to = c(1,2,3,4,5,6,7,8,9,10,11,12))
+
+soi$Date = as.Date(paste0(soi$Year, "-", soi$month, "-01"))
+
+# calculate 3-month average for PDO
+
+soi$SOI_3MON_AVG <- stats::filter(soi$SOI, rep(1 / 3, 3), sides = 2)
+
+
+# repeat for each date for merging with full dataset
 
 soi1<- do.call("rbind", lapply(1:nrow(soi), function(i) 
   data.frame(date = seq(soi$Date[i], 
@@ -58,7 +71,7 @@ soi1<- do.call("rbind", lapply(1:nrow(soi), function(i)
              soi = soi$SOI[i])))
 
 
-clim<- merge( pdo2,soi1, by="date" )
+clim<- merge( pdo1,soi1, by="date" )
 
 write.csv(clim, file="data/SOI_PDO data no lag.csv", row.names=F)
 
